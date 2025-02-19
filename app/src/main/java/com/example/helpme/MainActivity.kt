@@ -252,7 +252,7 @@ class MainActivity : ComponentActivity() {
 //            module = Module.load(assetFilePath("HelpNet_V1_CPU.pt"))
 //        }
 
-        ImageClassifier.loadModel(this, "HelpNet_V1_CPU.pt")
+        ImageClassifier.loadModel(this, "HelpNet_V2_Android.pt")
 
         // Register the activity result launcher for MediaProjection permission
         startMediaProjection = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
