@@ -5,7 +5,7 @@
 ## Overview  
 This Android application leverages a custom image classifier built with **PyTorch**. The classifier uses **MobileNet V3** as its backbone, optimizing for both **power efficiency** and **real-time inference** on portable devices.  
 
-Since I am not highly experienced in Kotlin or Android development, I utilized **GitHub Copilot** (GPT-3) to assist in building the app.  
+Since I am not highly experienced in Kotlin or Android development, I utilized **GitHub Copilot** (GPT-o3) to assist in building the Android app.  
 
 ## How It Works  
 1. The app takes a **screenshot** of your device every **10–20 seconds**.  
