@@ -149,67 +149,24 @@
 package com.example.helpme
 
 import android.app.Activity
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.PixelFormat
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
-import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
 import android.util.DisplayMetrics
-import android.util.Log
-import android.view.View
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.helpme.ui.theme.HelpMeTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import org.pytorch.IValue
-import org.pytorch.Module
-import org.pytorch.Tensor
-import org.pytorch.torchvision.TensorImageUtils
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.exp
-
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var module: Module
     private lateinit var imageReader: ImageReader
 
 
@@ -233,6 +190,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+
         // Request all needed storage permissions in a single call
         val permissions = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -247,12 +205,7 @@ class MainActivity : ComponentActivity() {
         }
         ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1)
 
-        // Load the PyTorch model in a background thread
-//        CoroutineScope(Dispatchers.IO).launch {
-//            module = Module.load(assetFilePath("HelpNet_V1_CPU.pt"))
-//        }
-
-        ImageClassifier.loadModel(this, "HelpNet_V2_Android.pt")
+        ImageClassifier.loadModel(this, "HelpNet_V2_Android.ptl")
 
         // Register the activity result launcher for MediaProjection permission
         startMediaProjection = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -278,65 +231,5 @@ class MainActivity : ComponentActivity() {
         val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
         startMediaProjection.launch(captureIntent)
     }
-
-
-
-    // Helper to load PyTorch's model
-    private fun assetFilePath(assetName: String): String {
-        val file = File(filesDir, assetName)
-        assets.open(assetName).use { inputStream ->
-            FileOutputStream(file).use { outputStream ->
-                val buffer = ByteArray(4 * 1024)
-                var read: Int
-                while (inputStream.read(buffer).also { read = it } != -1) {
-                    outputStream.write(buffer, 0, read)
-                }
-                outputStream.flush()
-            }
-        }
-        return file.absolutePath
-    }
-
-    // Preprocess the image
-    fun preprocessImage(bitmap: Bitmap): Tensor {
-        // Resize the image to 256x256
-        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
-
-        // Center crop the image to 224x224
-        val cropX = (resizedBitmap.width - 224) / 2
-        val cropY = (resizedBitmap.height - 224) / 2
-        val croppedBitmap = Bitmap.createBitmap(resizedBitmap, cropX, cropY, 224, 224)
-
-        // Convert the cropped bitmap into a tensor and normalize it
-        return TensorImageUtils.bitmapToFloat32Tensor(
-            croppedBitmap,
-            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
-            TensorImageUtils.TORCHVISION_NORM_STD_RGB
-        )
-    }
-
-    // Moved outside of preprocessImage so it is accessible
-    fun classifyImage(bitmap: Bitmap): FloatArray {
-        if (!::module.isInitialized) {
-            Log.d("MainActivity", "Model not loaded yet")
-            return floatArrayOf()
-        }
-        // Preprocess the image
-        val inputTensor = preprocessImage(bitmap)
-
-        // Perform inference
-        val outputTensor = module.forward(IValue.from(inputTensor)).toTensor()
-
-        // Apply sigmoid function manually
-        val outputData = outputTensor.dataAsFloatArray
-        val sigmoidOutputData = outputData.map { 1 / (1 + exp(-it)) }.toFloatArray()
-
-        // Log that the model has run along with the model's output
-        Log.d("MainActivity", "Model has run. Output: ${sigmoidOutputData.contentToString()}")
-
-        return sigmoidOutputData
-    }
-
-
 }
 

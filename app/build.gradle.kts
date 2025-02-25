@@ -18,16 +18,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -36,10 +26,10 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
-        compose = true
+        compose = false
     }
 
-    // ...existing config...
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -48,6 +38,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Change from resConfigs to resourceConfigurations
         }
     }
     splits {
@@ -71,19 +62,13 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("org.pytorch:pytorch_android:1.13.0")
-    implementation("org.pytorch:pytorch_android_torchvision:1.13.0")
+     implementation(libs.androidx.activity.compose)
+     implementation(platform(libs.androidx.compose.bom))
+     implementation(libs.androidx.ui)
+     implementation(libs.androidx.ui.graphics)
+     implementation(libs.androidx.ui.tooling.preview)
+     implementation(libs.androidx.material3)
+    implementation(libs.pytorch.android)
+    implementation(libs.pytorch.android.torchvision)
+    implementation(libs.androidx.appcompat)
 }

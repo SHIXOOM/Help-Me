@@ -10,7 +10,6 @@ import org.pytorch.torchvision.TensorImageUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.util.Locale
 import kotlin.math.exp
 
 object ImageClassifier {
