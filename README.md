@@ -1,6 +1,6 @@
-# Help Me  
+# Guardio
 
-**Help Me** is a mini-project designed to detect and prevent access to nudity or explicit content on your device.  
+**Guardio** is a mini-project designed to detect and prevent access to nudity or explicit content on your device.  
 
 ## Overview  
 This Android application leverages a custom image classifier built with **PyTorch**. The classifier uses **MobileNet V3** as its backbone, optimizing for both **power efficiency** and **real-time inference** on portable devices.  
