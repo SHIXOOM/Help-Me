@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.HelpMe" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Using a MaterialComponents theme -->
+    <style name="Theme.HelpMe" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Customize your theme colors, typography, etc., here -->
+    </style>
 </resources>

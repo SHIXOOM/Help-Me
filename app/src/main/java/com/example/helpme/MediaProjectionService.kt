@@ -23,7 +23,6 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import android.app.Activity
-import com.example.helpme.ImageClassifier
 
 import android.os.Environment
 import java.io.File
@@ -31,6 +30,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
 
 class MediaProjectionService : Service() {
 
@@ -79,6 +79,7 @@ class MediaProjectionService : Service() {
             .build()
         startForeground(NOTIFICATION_ID, notification)
         handler = Handler(Looper.getMainLooper())
+        handler.post(appBlockerCheckRunnable)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -100,7 +101,7 @@ class MediaProjectionService : Service() {
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(captureRunnable)
+        handler.removeCallbacks(appBlockerCheckRunnable)
         virtualDisplay?.release()
         imageReader?.close()
         mediaProjection?.unregisterCallback(mediaProjectionCallback)
@@ -170,19 +171,15 @@ class MediaProjectionService : Service() {
                 // Crop the bitmap to the exact screen size.
                 val croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height)
 
-                // Removed call to saveScreenshot to prevent disk usage.
                 // Classify the screenshot.
                 val classificationOutput = ImageClassifier.classifyImage(croppedBitmap)
                 Log.d("MediaProjectionService", "Classification output: ${classificationOutput.contentToString()}")
 
-                // Check classifier output; if first value is greater than 0.5, send user to Home screen.
                 if (classificationOutput.isNotEmpty() && classificationOutput[0] > 0.5f) {
-                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_HOME)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    startActivity(homeIntent)
-                    Log.d("MediaProjectionService", "Home intent launched due to high classifier output")
+                    Log.d("MediaProjectionService", "⚠️ EXPLICIT CONTENT DETECTED ⚠️")
+
+                    // Use more reliable fallback method
+                    AppBlocker.blockCurrentAppWithFallback(this)
                 }
             }
         } catch (e: Exception) {
@@ -208,6 +205,15 @@ class MediaProjectionService : Service() {
             Log.d("MediaProjectionService", "Screenshot saved: ${file.absolutePath}")
         } catch (e: Exception) {
             Log.e("MediaProjectionService", "Error saving screenshot", e)
+        }
+    }
+
+    private val appBlockerCheckRunnable = object : Runnable {
+        override fun run() {
+            if (AppBlocker.hasUsageStatsPermission(this@MediaProjectionService)) {
+                AppBlocker.checkAndBlockIfNeeded(this@MediaProjectionService)
+            }
+            handler.postDelayed(this, 1000) // Check every second
         }
     }
 }

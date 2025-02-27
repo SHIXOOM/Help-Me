@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Help Me</string>
+    <string name="return_to_home">Return to Home</string>
+    <string name="this_app_is_blocked_for_30_minutes">This app is blocked for 30 minutes</string>
+    <string name="app_blocked">App Blocked</string>
 </resources>

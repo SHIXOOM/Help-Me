@@ -62,3 +62,13 @@
 -allowaccessmodification
 -repackageclasses
 -optimizations !code/allocation/variable
+
+# Keep signature related classes
+-keep class android.content.pm.** { *; }
+-keep class android.content.Signature { *; }
+
+# Keep certificate information
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-keepattributes InnerClasses

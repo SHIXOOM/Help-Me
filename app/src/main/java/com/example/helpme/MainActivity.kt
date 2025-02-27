@@ -160,10 +160,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.provider.Settings
+
 
 class MainActivity : ComponentActivity() {
 
@@ -190,9 +191,60 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val permissions = mutableListOf<String>()
+
+        // Check for usage stats permission
+        if (!AppBlocker.hasUsageStatsPermission(this)) {
+            // Show alert explaining permission need
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Permission Required")
+                .setMessage("Help Me needs access to usage statistics to block apps when explicit content is detected.")
+                .setPositiveButton("Grant") { _, _ ->
+                    AppBlocker.requestUsageStatsPermission(this)
+                }
+                .setCancelable(false)
+                .show()
+        }
+
+        // Check for overlay permission
+        if (!Settings.canDrawOverlays(this)) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Overlay Permission Required")
+                .setMessage("Help Me needs to display over other apps to block inappropriate content.")
+                .setPositiveButton("Grant") { _, _ ->
+                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                    startActivity(intent)
+                }
+                .setCancelable(false)
+                .show()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            permissions.add(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE)
+        } else {
+            permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        // Request overlay permission if not granted
+        if (!Settings.canDrawOverlays(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            startActivity(intent)
+        }
+
+        // Request usage stats permission
+        if (!AppBlocker.hasUsageStatsPermission(this)) {
+            AppBlocker.requestUsageStatsPermission(this)
+        }
+
+        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1)
+
 
         // Request all needed storage permissions in a single call
-        val permissions = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             permissions.add(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE)
         } else {

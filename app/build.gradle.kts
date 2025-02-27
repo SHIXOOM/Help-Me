@@ -26,21 +26,34 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
-        compose = false
+        compose = true
     }
 
 
     buildTypes {
         release {
+            // signingConfig = signingConfigs.release
+
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Change from resConfigs to resourceConfigurations
+            // resourceConfigurations += listOf("en")
+            // // Change from resConfigs to resourceConfigurations
         }
     }
+
+    // signingConfigs {
+    //     release {
+    //         storeFile file("Keystore file")
+    //         storePassword "shadyali"
+    //         keyAlias "key0"
+    //         keyPassword "shadyali"
+    //     }
+    // }
+
     splits {
         abi {
             isEnable = true
@@ -62,13 +75,17 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-     implementation(libs.androidx.activity.compose)
-     implementation(platform(libs.androidx.compose.bom))
-     implementation(libs.androidx.ui)
-     implementation(libs.androidx.ui.graphics)
-     implementation(libs.androidx.ui.tooling.preview)
-     implementation(libs.androidx.material3)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
     implementation(libs.pytorch.android)
     implementation(libs.pytorch.android.torchvision)
     implementation(libs.androidx.appcompat)
+
+    implementation(libs.androidx.cardview)
+    implementation(libs.androidx.constraintlayout.v221)
+    implementation(libs.material)
 }
