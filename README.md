@@ -1,11 +1,11 @@
-# Guardio
+# Watch Guard
 
-**Guardio** is a mini-project designed to detect and prevent access to nudity or explicit content on your device.  
+**Watch Guard** is a mini-project designed to detect and prevent access to nudity or explicit content on your device.  
 
 ## Overview  
 This Android application leverages a custom image classifier built with **PyTorch**. The classifier uses **MobileNet V3** as its backbone, optimizing for both **power efficiency** and **real-time inference** on portable devices.  
 
-Since I am not highly experienced in Kotlin or Android development, I utilized **GitHub Copilot** (GPT-o3) to assist in building the Android app.  
+I am not experienced in Kotlin or Android development, hence I utilized **GitHub Copilot** (GPT-o3 & Sonnet 3.7 & Gemini Flash 2.0) to assist in building the Android application.  
 
 ## How It Works  
 1. The app takes a **screenshot** of your device every **10–20 seconds**.  
