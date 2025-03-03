@@ -153,9 +153,14 @@ import android.content.Context
 import android.content.Intent
 import android.media.ImageReader
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+
+import android.os.Handler
+import android.os.Looper
 import android.util.DisplayMetrics
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -170,6 +175,8 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var imageReader: ImageReader
 
+    // Permission tracking
+    private var permissionStep = 0 // 0=none, 1=usage stats, 2=overlay, 3=projection
 
     // Assuming these values are defined somewhere in your class
     private val displayMetrics: DisplayMetrics by lazy {
@@ -186,14 +193,66 @@ class MainActivity : ComponentActivity() {
         get() = displayMetrics.densityDpi
 
     private lateinit var startMediaProjection: ActivityResultLauncher<Intent>
+    
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        Log.d("MainActivity", "Starting sequential permission requests")
+        
+        // Initialize the media projection launcher
+        startMediaProjection = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+                Log.d("MainActivity", "Screen capture permission granted - Final step")
+                
+                // Start the MediaProjectionService with the granted permission
+                val serviceIntent = Intent(this, MediaProjectionService::class.java).apply {
+                    putExtra("resultCode", result.resultCode)
+                    putExtra("data", result.data)
+                }
+                ContextCompat.startForegroundService(this, serviceIntent)
+                
+                // Only NOW go to home screen after all permissions have been granted
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(homeIntent)
+            } else {
+                Log.d("MainActivity", "Screen capture permission denied")
+            }
+        }
+        
+        // Load ML model in background
+        ImageClassifier.loadModel(this, "HelpNet_V2_Android.ptl")
+        
+        // Begin permission sequence with step 1
+        permissionStep = 1
+        requestNextPermission()
 
-        val permissions = mutableListOf<String>()
+    }
+    
+    /**
+     * Handles requesting the next permission in sequence based on permissionStep
+     */
+    private fun requestNextPermission() {
+        when (permissionStep) {
+            1 -> requestUsageStatsPermission()
+            2 -> requestOverlayPermission()
+            3 -> requestMediaProjectionPermission()
+        }
+    }
+    
 
-        // Check for usage stats permission
+    
+    /**
+     * Step 1: Request usage stats permission
+     */
+    private fun requestUsageStatsPermission() {
+        Log.d("MainActivity", "Step 1: Requesting usage stats permission")
+        
         if (!AppBlocker.hasUsageStatsPermission(this)) {
             // Show alert explaining permission need
             android.app.AlertDialog.Builder(this)
@@ -201,87 +260,76 @@ class MainActivity : ComponentActivity() {
                 .setMessage("Help Me needs access to usage statistics to block apps when explicit content is detected.")
                 .setPositiveButton("Grant") { _, _ ->
                     AppBlocker.requestUsageStatsPermission(this)
+                    // We'll rely on onResume to continue the flow
                 }
                 .setCancelable(false)
                 .show()
+        } else {
+            // Already granted, move to next permission
+            permissionStep = 2
+            requestNextPermission()
         }
-
-        // Check for overlay permission
+    }
+    
+    /**
+     * Step 2: Request overlay permission
+     */
+    private fun requestOverlayPermission() {
+        Log.d("MainActivity", "Step 2: Requesting overlay permission")
+        
         if (!Settings.canDrawOverlays(this)) {
             android.app.AlertDialog.Builder(this)
                 .setTitle("Overlay Permission Required")
                 .setMessage("Help Me needs to display over other apps to block inappropriate content.")
                 .setPositiveButton("Grant") { _, _ ->
                     val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                    intent.data = Uri.parse("package:$packageName")
                     startActivity(intent)
+                    // We'll rely on onResume to continue the flow
                 }
                 .setCancelable(false)
                 .show()
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            permissions.add(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE)
         } else {
-            permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            // Already granted, move to final permission
+            permissionStep = 3
+            requestNextPermission()
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        // Request overlay permission if not granted
-        if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-            startActivity(intent)
-        }
-
-        // Request usage stats permission
-        if (!AppBlocker.hasUsageStatsPermission(this)) {
-            AppBlocker.requestUsageStatsPermission(this)
-        }
-
-        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1)
-
-
-        // Request all needed storage permissions in a single call
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            permissions.add(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE)
-        } else {
-            permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1)
-
-        ImageClassifier.loadModel(this, "HelpNet_V2_Android.ptl")
-
-        // Register the activity result launcher for MediaProjection permission
-        startMediaProjection = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                // Start the MediaProjectionService with the granted permission.
-                val serviceIntent = Intent(this, MediaProjectionService::class.java).apply {
-                    putExtra("resultCode", result.resultCode)
-                    putExtra("data", result.data)
-                }
-                ContextCompat.startForegroundService(this, serviceIntent)
-                
-                // Trigger going to the Home screen after recording permission is granted.
-                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_HOME)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                startActivity(homeIntent)
-            }
-        }
-
-        // Create and launch the intent for screen capture
+    }
+    
+    /**
+     * Step 3 (Final): Request media projection permission
+     * This is the final step that will trigger the app to go to home screen
+     * after this permission is granted
+     */
+    private fun requestMediaProjectionPermission() {
+        Log.d("MainActivity", "Step 3 (Final): Requesting screen capture permission")
         val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
         startMediaProjection.launch(captureIntent)
     }
+    
+    override fun onResume() {
+        super.onResume()
+        
+        // Check permissions after returning from system settings
+        when (permissionStep) {
+            1 -> {
+                // Check if usage stats permission is now granted
+                if (AppBlocker.hasUsageStatsPermission(this)) {
+                    permissionStep = 2
+                    requestNextPermission()
+                }
+            }
+            2 -> {
+                // Check if overlay permission is now granted
+                if (Settings.canDrawOverlays(this)) {
+                    permissionStep = 3
+                    requestNextPermission()
+                }
+            }
+        }
+    }
+    
+
 }
 

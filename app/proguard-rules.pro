@@ -20,11 +20,20 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+# Keep only essential PyTorch classes
+-keep class org.pytorch.LiteModuleLoader { *; }
 -keep class org.pytorch.Module { *; }
--keep class org.pytorch.IValue { *; }
 -keep class org.pytorch.Tensor { *; }
--keep class org.pytorch.torchvision.TensorImageUtils { *; }
--dontwarn org.pytorch.**
+-keep class org.pytorch.IValue { *; }
+
+# Keep minimal native methods
+-keepclasseswithmembers class org.pytorch.** {
+    native <methods>;
+}
+
+# Keep essential JNI
+-keep class com.facebook.jni.HybridData { *; }
+-keep class com.facebook.jni.CppProxy { *; }
 
 # Current ProGuard rule
 -dontwarn org.pytorch.**

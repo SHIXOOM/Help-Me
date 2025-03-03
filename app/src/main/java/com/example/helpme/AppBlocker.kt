@@ -13,6 +13,10 @@ import java.util.concurrent.TimeUnit
 object AppBlocker {
     private val blockedApps = mutableMapOf<String, Long>() // Package name -> Unblock time
     const val DEFAULT_BLOCK_DURATION_MINUTES = 10L
+    
+    // Track the last detected foreground app for better reliability
+    private var lastKnownForegroundApp: String? = null
+    private var lastForegroundAppTimestamp: Long = 0
 
     fun blockApp(context: Context, packageName: String) {
         val unblockTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(
@@ -40,21 +44,63 @@ object AppBlocker {
         val time = System.currentTimeMillis()
 
         try {
-            // Get usage events for the last 10 seconds
-            val usageEvents = usageStatsManager.queryEvents(time - 10000, time)
-            var lastEvent: UsageEvents.Event? = null
+            // Use a larger time window (60 seconds) to catch more events
+            val usageEvents = usageStatsManager.queryEvents(time - 60000, time)
+            var lastForegroundEvent: UsageEvents.Event? = null
+            var lastHomeEvent: UsageEvents.Event? = null
+            var lastNonHelpMeApp: UsageEvents.Event? = null
 
-            // Find the last foreground event
+            // Track both foreground and home events
             while (usageEvents.hasNextEvent()) {
                 val event = UsageEvents.Event()
                 usageEvents.getNextEvent(event)
 
-                if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                    lastEvent = event
+                when (event.eventType) {
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        // Update last foreground event if it's not a launcher
+                        if (!event.packageName.startsWith("com.android.launcher")) {
+                            lastForegroundEvent = event
+                            
+                            // Keep track of the last non-HelpMe app for better fallback
+                            if (event.packageName != "com.example.helpme") {
+                                lastNonHelpMeApp = event
+                                
+                                // Update our cache of the last known foreground app
+                                lastKnownForegroundApp = event.packageName
+                                lastForegroundAppTimestamp = event.timeStamp
+                                
+                                Log.d("AppBlocker", "Cached foreground app: ${event.packageName}")
+                            }
+                        } else {
+                            lastHomeEvent = event
+                        }
+                    }
                 }
             }
 
-            return lastEvent?.packageName
+            // If we have a recent foreground event, use it
+            if (lastForegroundEvent != null) {
+                val timeSinceEvent = time - lastForegroundEvent.timeStamp
+                if (timeSinceEvent <= 60000) { // Within last 60 seconds
+                    return lastForegroundEvent.packageName
+                }
+            }
+
+            // If we recently went to home screen, return the last non-HelpMe app we saw
+            if (lastHomeEvent != null) {
+                val timeSinceHome = time - lastHomeEvent.timeStamp
+                if (timeSinceHome <= 10000) { // Within last 10 seconds
+                    // Return the last non-HelpMe app we saw before the home event
+                    if (lastNonHelpMeApp != null && 
+                        lastNonHelpMeApp.timeStamp < lastHomeEvent.timeStamp && 
+                        (lastHomeEvent.timeStamp - lastNonHelpMeApp.timeStamp) < 15000) {
+                        return lastNonHelpMeApp.packageName
+                    }
+                }
+            }
+
+            // If we have any foreground event, return it as last resort
+            return lastForegroundEvent?.packageName
         } catch (e: Exception) {
             Log.e("AppBlocker", "Error getting foreground app", e)
             return null
@@ -104,9 +150,11 @@ object AppBlocker {
     }
 
     fun blockCurrentAppWithFallback(context: Context) {
+        // First try to get the current app
         val currentApp = getCurrentForegroundApp(context)
         Log.d("AppBlocker", "Attempting to block current app. Detected: $currentApp")
 
+        // If successful and it's not our own app or launcher
         if (currentApp != null &&
             currentApp != "com.example.helpme" &&
             !currentApp.startsWith("com.android.launcher")) {
@@ -114,14 +162,27 @@ object AppBlocker {
             // Block specific app
             blockApp(context, currentApp)
         } else {
-            // Fallback - block "unknown" app
-            Log.d("AppBlocker", "Using fallback blocking")
+            // Try using our cached last known app
+            val timeSinceLastKnown = System.currentTimeMillis() - lastForegroundAppTimestamp
+            
+            if (lastKnownForegroundApp != null && 
+                lastKnownForegroundApp != "com.example.helpme" &&
+                !lastKnownForegroundApp!!.startsWith("com.android.launcher") &&
+                timeSinceLastKnown < 60000) { // Only use cache from last 60 seconds
+                
+                // Use our cached last known app
+                Log.d("AppBlocker", "Using cached app for blocking: $lastKnownForegroundApp")
+                blockApp(context, lastKnownForegroundApp!!)
+            } else {
+                // Ultimate fallback - block "unknown" app
+                Log.d("AppBlocker", "Using fallback blocking - no app could be determined")
 
-            // Set a generic block time
-            val unblockTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(DEFAULT_BLOCK_DURATION_MINUTES)
+                // Set a generic block time
+                val unblockTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(DEFAULT_BLOCK_DURATION_MINUTES)
 
-            // Let BlockOverlayManager handle returning to home screen
-            BlockOverlayManager.showBlockingOverlay(context, "unknown", unblockTime)
+                // Let BlockOverlayManager handle returning to home screen
+                BlockOverlayManager.showBlockingOverlay(context, "unknown", unblockTime)
+            }
         }
     }
 }

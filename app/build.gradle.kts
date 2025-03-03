@@ -33,15 +33,15 @@ android {
     buildTypes {
         release {
             // signingConfig = signingConfigs.release
-
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // resourceConfigurations += listOf("en")
-            // // Change from resConfigs to resourceConfigurations
+//            ndk {
+//                abiFilters += listOf("arm64-v8a")
+//            }
         }
     }
 
@@ -72,20 +72,55 @@ android {
 }
 
 dependencies {
-
+    // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    
+    // Compose dependencies - use api to expose only necessary components
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.ui) {
+        exclude(group = "androidx.compose.animation")
+        exclude(module = "animation-core")
+    }
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.pytorch.android)
-    implementation(libs.pytorch.android.torchvision)
-    implementation(libs.androidx.appcompat)
-
+    runtimeOnly(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3) {
+        exclude(group = "androidx.compose.animation")
+    }
+    
+    // PyTorch dependencies - ultra minimal configuration
+    implementation(libs.pytorch.android) {
+        exclude(group = "com.facebook.soloader", module = "nativeloader")
+        exclude(group = "com.facebook.soloader", module = "annotation")
+        exclude(group = "com.facebook.soloader", module = "soloader")
+        exclude(group = "com.android.support", module = "support-annotations")
+        exclude(group = "org.pytorch", module = "pytorch_android_torchvision")
+        exclude(group = "org.pytorch", module = "pytorch_android_vision")
+        exclude(group = "org.pytorch", module = "pytorch_android_fbjni")
+        exclude(group = "com.android.support", module = "appcompat-v7")
+        exclude(group = "com.android.support", module = "support-v4")
+        exclude(group = "org.pytorch", module = "pytorch_android_build")
+    }
+    implementation(libs.pytorch.android.torchvision) {
+        exclude(group = "org.pytorch", module = "pytorch_android")
+        exclude(group = "com.facebook.soloader", module = "nativeloader")
+        exclude(group = "com.facebook.soloader", module = "annotation")
+        exclude(group = "org.pytorch", module = "pytorch_android_vision")
+        exclude(group = "com.android.support", module = "support-v4")
+        exclude(group = "com.android.support", module = "appcompat-v7")
+        exclude(group = "org.pytorch", module = "pytorch_android_fbjni")
+        exclude(group = "org.pytorch", module = "pytorch_android_build")
+    }
+    
+    // UI dependencies - use api to expose only necessary components
+    implementation(libs.androidx.appcompat) {
+        exclude(group = "androidx.lifecycle", module = "lifecycle-viewmodel")
+    }
     implementation(libs.androidx.cardview)
     implementation(libs.androidx.constraintlayout.v221)
-    implementation(libs.material)
+    implementation(libs.material) {
+        exclude(group = "androidx.recyclerview", module = "recyclerview")
+        exclude(group = "androidx.transition", module = "transition")
+    }
 }
